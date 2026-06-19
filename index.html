@@ -497,6 +497,11 @@ body::before{content:'';position:fixed;inset:0;background:
 const CFG = {
   lineUrl: 'https://line.me/R/ti/p/@507wvwbz',
   igUrl: 'https://instagram.com/mori1024_',
+  trackerUrl: 'https://quiz-tracker.mori1024.workers.dev/track',
+  mlKey: '',     // TODO: 填入 MailerLite API key
+  mlGroup: {
+    P: '',  A: '',  C: '',  D: '',  M: '',
+  },
 };
 
 /* ── 2. 狀態變數 ── */
@@ -840,13 +845,22 @@ function showResult(){
 }
 
 /* ── 10. Email 收集 ── */
-function submitEmail(){
+async function submitEmail(){
   const email=document.getElementById('emailInp').value.trim();
   if(!email||!email.includes('@')) return;
   document.getElementById('emailDone').style.display='block';
   document.getElementById('emailInp').disabled=true;
   const {q1,q2,q3}=surveyAnswers;
   trackResponse({quiz:'not-enough',result:TYPES[finalType].zh,q1,q2,q3,segment:calcSeg(),email});
+  if(CFG.mlKey&&CFG.mlGroup[finalType]){
+    try{
+      await fetch('https://connect.mailerlite.com/api/subscribers',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+CFG.mlKey},
+        body:JSON.stringify({email,groups:[CFG.mlGroup[finalType]]})
+      });
+    }catch(e){}
+  }
 }
 function skipEmail(){ downloadPDF(); }
 function calcSeg(){
