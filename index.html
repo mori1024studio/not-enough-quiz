@@ -93,7 +93,9 @@ body::before{content:'';position:fixed;inset:0;background:
 .opt.picked .opt-ltr{background:var(--cA);border-color:var(--cA);color:#fff}
 .opt-txt{font-size:14px;line-height:1.6;color:var(--muted);transition:var(--ease)}
 .opt.picked .opt-txt{color:var(--text)}
-.quiz-nav{display:flex;justify-content:flex-end;margin-top:20px}
+.quiz-nav{display:flex;justify-content:space-between;align-items:center;margin-top:20px}
+.btn-prev-q{background:transparent;border:1px solid var(--border);border-radius:100px;padding:10px 22px;font-size:13.5px;color:var(--muted);cursor:pointer;font-family:inherit;transition:var(--ease)}
+.btn-prev-q:hover{border-color:rgba(255,255,255,.2);color:var(--text)}
 .btn-next{background:var(--s2);border:1.5px solid var(--border);border-radius:100px;padding:12px 32px;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;transition:var(--ease)}
 .btn-next:not(:disabled):hover{border-color:var(--gold);color:var(--text)}
 .btn-next:disabled{opacity:.35;cursor:not-allowed}
@@ -332,6 +334,7 @@ body::before{content:'';position:fixed;inset:0;background:
     <div class="q-text" id="qText"></div>
     <div class="opts" id="optList"></div>
     <div class="quiz-nav">
+      <button class="btn-prev-q" id="btnPrev" onclick="prevQ()">← 返回首頁</button>
       <button class="btn-next" id="nextBtn" onclick="nextQ()" disabled>下一題 →</button>
     </div>
   </div>
@@ -505,7 +508,7 @@ const CFG = {
 };
 
 /* ── 2. 狀態變數 ── */
-let currentQ = 0, pickedIdx = null, answers = [], finalType = '';
+let currentQ = 0, pickedIdx = null, answers = [], pickedHistory = [], finalType = '';
 let surveyAnswers = { q1:'', q2:'', q3:'' };
 
 /* ── 3. 測驗資料 ── */
@@ -695,6 +698,16 @@ function renderQ(){
   const btn=document.getElementById('nextBtn');
   btn.disabled=true; btn.classList.remove('ready');
   btn.textContent=currentQ<QS.length-1?'下一題 →':'查看結果 →';
+  // 還原上一次的選擇（返回上一題時）
+  const prev=pickedHistory[currentQ];
+  if(prev!==undefined){
+    document.querySelectorAll('.opt')[prev]?.classList.add('picked');
+    pickedIdx=prev;
+    btn.disabled=false; btn.classList.add('ready');
+  }
+  // 更新返回按鈕文字
+  const pb=document.getElementById('btnPrev');
+  if(pb) pb.textContent=currentQ===0?'← 返回首頁':'← 上一題';
 }
 function pickOpt(el,idx){
   document.querySelectorAll('.opt').forEach(o=>o.classList.remove('picked'));
@@ -704,8 +717,14 @@ function pickOpt(el,idx){
 }
 function nextQ(){
   if(pickedIdx===null) return;
-  answers.push(QS[currentQ].opts[pickedIdx].scores);
+  pickedHistory[currentQ]=pickedIdx;
+  answers[currentQ]=QS[currentQ].opts[pickedIdx].scores;
   if(currentQ<QS.length-1){ currentQ++; renderQ(); } else { doCalc(); }
+}
+function prevQ(){
+  if(currentQ===0){ show('screen-welcome'); return; }
+  currentQ--;
+  renderQ();
 }
 
 /* ── 6. 計分邏輯（加權矩陣）── */
@@ -720,9 +739,9 @@ function doCalc(){
   },750);
   setTimeout(()=>{
     clearInterval(iv); barEl.style.width='100%';
-    // 加總所有題目的加權分數
+    // 加總所有題目的加權分數（answers 以題目 index 為鍵，支援返回修改）
     const scores={P:0,A:0,C:0,D:0,M:0};
-    answers.forEach(s=>{ Object.keys(scores).forEach(k=>{ scores[k]+=(s[k]||0); }); });
+    answers.filter(Boolean).forEach(s=>{ Object.keys(scores).forEach(k=>{ scores[k]+=(s[k]||0); }); });
     let best=null,bestScore=-1;
     ['P','A','C','D','M'].forEach(k=>{ if(scores[k]>bestScore){ bestScore=scores[k]; best=k; } });
     finalType=best;
